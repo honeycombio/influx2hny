@@ -3,70 +3,86 @@ package honeycomb
 import (
 	"bufio"
 	"context"
-	"errors"
 	"fmt"
 	"io"
-	"os"
+	"io/ioutil"
+	"sync"
 	"time"
 
 	"github.com/influxdata/telegraf"
 	"github.com/influxdata/telegraf/plugins/parsers/influx"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/honeycombio/libhoney-go"
 )
 
 type Output struct {
-	hnyClient      *libhoney.Client
-	influxParser   *influx.Parser
-	metrics        chan (telegraf.Metric)
-	unprefixedTags []string
-}
+	// FlushInterval controls the time that the Output will buffer Metrics
+	// before attempting to flatten them into a single Honeycomb event per
+	// timestamp. See the documentation for Aggregate for more discussion.
+	//
+	// Default: 5 seconds.
+	FlushInterval time.Duration
 
-type Config struct {
-	APIKey         string
-	Dataset        string
-	APIHost        string
+	// MaxBufferSize is the maximum number of Metrics we'll hold onto in memory
+	// before initiating a flush.
+	//
+	// Default: 1000
+	MaxBufferSize int
+
+	// DebugWriter has debug log messages written to it if set.
+	// Useful for debugging usage inside of telegraf.
+	//
+	// Default: ioutil.Discard
+	DebugWriter io.Writer
+
+	// UnprefixedTags is the list of tags that will NOT be prefixed by the
+	// associated metric name when constructing the Honeycomb field name.
+	//
+	// By default, every field and tag of a Metric are sent as a Honeycomb
+	// field prefixed by the metric name. So a telegraf Metric like this:
+	// { name=disk // tags={device:sda} fields={free:232827793}}
+	// becomes two Honeycomb fields: "disk.device" and "disk.free".
+	//
+	// Exclude tags from this behavior by setting them in this list.
+	// Any global tags should be included here.
+	//
+	// The "host" tag will always be treated as if it is included in this list.
+	// (i.e., it is always sent as the field "host")
 	UnprefixedTags []string
+
+	hnyClient    *libhoney.Client
+	influxParser *influx.Parser
+
+	// metrics is used to shovel between Read and Aggregate.
+	metrics chan (telegraf.Metric)
+
+	// buffer is owned by the Aggregate routine, but needs to be locked
+	// to avoid duplicate flushes.
+	mx     sync.Mutex
+	buffer []telegraf.Metric
 }
 
-var DefaultConfig = Config{
-	Dataset: "telegraf",
-	APIHost: "https://api.honeycomb.io",
-}
-
-func NewOutput(c Config) (*Output, error) {
-	switch "" {
-	case c.APIKey:
-		return nil, errors.New("APIKey is required")
-	case c.APIHost:
-		return nil, errors.New("APIHost is required")
-	case c.Dataset:
-		c.Dataset = "telegraf"
-	}
-
-	client, err := libhoney.NewClient(libhoney.ClientConfig{
-		APIKey:  c.APIKey,
-		Dataset: c.Dataset,
-		APIHost: c.APIHost,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	p := influx.NewParser(influx.NewMetricHandler())
-
+func NewOutput(hnyClient *libhoney.Client) *Output {
 	return &Output{
-		hnyClient:      client,
-		influxParser:   p,
-		unprefixedTags: c.UnprefixedTags,
-	}, nil
+		FlushInterval: 5 * time.Second,
+		MaxBufferSize: 1000,
+		DebugWriter:   ioutil.Discard,
+		metrics:       make(chan telegraf.Metric),
+		hnyClient:     hnyClient,
+		influxParser:  influx.NewParser(influx.NewMetricHandler()),
+	}
+}
+
+func (o *Output) debug(s string, args ...interface{}) {
+	fmt.Fprintf(o.DebugWriter, "[influx2hny] "+s, args...)
 }
 
 func (o *Output) Process(ctx context.Context, r io.Reader) error {
-	// TODO: read metrics channel into aggregation buckets
-	// TODO: then flush to libhoney on timer
-	// TODO: handle context cancelation
-	return o.Read(ctx, r)
+	group, ctx := errgroup.WithContext(ctx)
+	group.Go(func() error { return o.Read(ctx, r) })
+	group.Go(func() error { return o.Aggregate(ctx) })
+	return group.Wait()
 }
 
 func (o *Output) Read(ctx context.Context, r io.Reader) error {
@@ -80,31 +96,132 @@ func (o *Output) Read(ctx context.Context, r io.Reader) error {
 	for s.Scan() {
 		m, err = o.influxParser.ParseLine(s.Text())
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "failed to parse metric: %s\n", err.Error())
+			o.debug("failed to parse metric: %s\n", err.Error())
 			continue
 		}
+		o.debug("msg=metric.parsed name=%s fields=%d\n", m.Name(), len(m.FieldList()))
 		o.metrics <- m
 	}
 	return nil
 }
 
-func (o *Output) Write(metrics []telegraf.Metric) error {
-	evs, err := o.BuildEvents(metrics)
-	if err != nil {
-		return fmt.Errorf("Honeycomb event creation error: %s", err.Error())
-	}
+// Aggregate converts Telegraf metrics into Honeycomb events.
+//
+// It reads off the Output's metrics channel and attempts to flatten the
+// metrics into as few Honeycomb events as possible.
+//
+// Runs indefinitely until the passed Context is canceled or an unrecoverable
+// error occurs.
+func (o *Output) Aggregate(ctx context.Context) error {
+	flushTick := time.NewTicker(o.FlushInterval)
+	for {
+		select {
+		case <-ctx.Done():
+			o.Flush()
+			return nil
+		case m := <-o.metrics:
+			o.mx.Lock()
+			o.buffer = append(o.buffer, m)
+			size := len(o.buffer)
+			o.mx.Unlock()
 
-	for _, ev := range evs {
-		fmt.Printf("ev = %+v\n", ev)
-		// send event
-		if err = ev.Send(); err != nil {
-			return fmt.Errorf("Honeycomb Send error: %s", err.Error())
+			if size >= o.MaxBufferSize {
+				o.debug("msg=buffer.max_size size=")
+				o.Flush()
+			}
+		case <-flushTick.C:
+			// FIXME: we have a bit of a race condition here.
+			//
+			// Telegraf collects and outputs on an interval, so we fill the
+			// buffer (above) before processing the flush. Usually, this means
+			// the flush will be during a period of no input and catch all
+			// metrics for a timestamp.
+			//
+			// However, it's still possible that if very busy we flush without
+			// having all metrics for a timestamp in our buffer. This isn't
+			// terrible though; it just creates an extra Honeycomb event or two
+			// on the next interval. Fixing this would require implementing a
+			// priority queue-like structure where we could only flush metrics
+			// that were at least T time old, which doesn't seem worth it.
+			o.Flush()
 		}
 	}
+}
 
-	libhoney.Flush()
+func (o *Output) Flush() {
+	o.debug("msg=flush.begin metrics=%d\n", len(o.buffer))
 
-	return nil
+	o.mx.Lock()
+	eventsCount := 0
+	defer func() {
+		o.debug("msg=flush.end metrics=%d events=%d\n", len(o.buffer), eventsCount)
+		o.hnyClient.Flush()
+		o.buffer = nil
+		o.mx.Unlock()
+	}()
+
+	// For each timestamp, we want to send a single event to Honeycomb with as
+	// many metrics as possible. However, some metrics may be sent to us more
+	// than once. Eg, disk usage is sent once for each disk. So build a
+	// map[time]map[name][]Metric. We'll then look at all the metric names for
+	// a given timestamp that can be combined and flatten them into a single
+	// event. Metrics that have non-mergable fields will be sent as separate
+	// events.
+	//
+	// (We group by metric name because each metric's fields are prefixed by
+	// the metric name before they're sent. So any metrics with different names
+	// are definitely mergeable. This also gives us a nice way to know which
+	// metrics to send separately.)
+	metricsByTimeAndName := make(map[time.Time]map[string][]telegraf.Metric)
+
+	for _, m := range o.buffer {
+		metricsByName := metricsByTimeAndName[m.Time()]
+		if metricsByName == nil {
+			metricsByName = make(map[string][]telegraf.Metric)
+		}
+		metricsByName[m.Name()] = append(metricsByName[m.Name()], m)
+		metricsByTimeAndName[m.Time()] = metricsByName
+	}
+
+	for ts, metricsByName := range metricsByTimeAndName {
+		// The one event for all the metrics in this timestamp that can be flattened
+		flatEvent := o.hnyClient.NewEvent()
+		flatEvent.Timestamp = ts
+		eventsCount++
+
+		// For each metric, check if it's mergeable (a single event or disjoint
+		// fields with the same tags). If it is, it can go in the flatEvent.
+		// Otherwise, create and send unique event for it.
+		for name, metrics := range metricsByName {
+			// if the metrics with the same name result in a distinct set of field names,
+			// we can still flatten them.
+			if mergeable(metrics) {
+				o.debug("msg=metrics.flatten name=%s count=%d timestamp=%d\n", name, len(metrics), ts.Unix())
+				for i := range metrics {
+					if err := flatEvent.Add(o.dataForMetric(metrics[i])); err != nil {
+						o.debug("libhoney Add error: %s\n", err.Error())
+					}
+				}
+			} else {
+				o.debug("msg=metrics.individual name=%s count=%d timestamp=%d\n", name, len(metrics), ts.Unix())
+				for i := range metrics {
+					ev := o.hnyClient.NewEvent()
+					ev.Timestamp = ts
+					eventsCount++
+					if err := ev.Add(o.dataForMetric(metrics[i])); err != nil {
+						o.debug("libhoney Add error: %s\n", err.Error())
+					} else if err := ev.Send(); err != nil {
+						o.debug("libhoney Send error: %s\n", err.Error())
+					}
+				}
+			}
+		}
+
+		// once we've aggregated everything for that timestamp, send the flattened event.
+		if err := flatEvent.Send(); err != nil {
+			o.debug("libhoney Send error: %s\n", err.Error())
+		}
+	}
 }
 
 func (o *Output) dataForMetric(m telegraf.Metric) map[string]interface{} {
@@ -117,8 +234,8 @@ func (o *Output) dataForMetric(m telegraf.Metric) map[string]interface{} {
 		if t.Key == "host" {
 			k = t.Key
 		} else {
-			for i := range o.unprefixedTags {
-				if o.unprefixedTags[i] == t.Key {
+			for i := range o.UnprefixedTags {
+				if o.UnprefixedTags[i] == t.Key {
 					k = t.Key
 				}
 			}
@@ -134,73 +251,9 @@ func (o *Output) dataForMetric(m telegraf.Metric) map[string]interface{} {
 	return data
 }
 
-func (o *Output) BuildEvents(ms []telegraf.Metric) ([]*libhoney.Event, error) {
-	// For each timestamp, we want to send a single event to Honeycomb with as
-	// many metrics as possible. However, some metrics may be sent to us more
-	// than once. Eg, disk usage is sent once for each disk. So build a
-	// map[time]map[name][]Metric. We'll then look at all the metric names for
-	// a given timestamp that have only one value and batch them. Any metrics
-	// that have > 1 value will be sent as separate events.
-	metricsByTimeAndName := make(map[time.Time]map[string][]telegraf.Metric)
-
-	for _, m := range ms {
-		metricsByName := metricsByTimeAndName[m.Time()]
-		if metricsByName == nil {
-			metricsByName = make(map[string][]telegraf.Metric)
-		}
-		metricsByName[m.Name()] = append(metricsByName[m.Name()], m)
-		metricsByTimeAndName[m.Time()] = metricsByName
-	}
-
-	var evs []*libhoney.Event
-	for ts, metricsByName := range metricsByTimeAndName {
-		// the single event for all the metrics flattened into a single event
-		flatEvent := libhoney.NewEvent()
-		flatEvent.Timestamp = ts
-
-		// for each metric name with only 1 Metric, flatten it.
-		// otherwise, create a unique event for it.
-		for name, metrics := range metricsByName {
-			if len(metrics) == 1 {
-				fmt.Println("merging one:", name)
-				if err := flatEvent.Add(o.dataForMetric(metrics[0])); err != nil {
-					return nil, err
-				}
-			} else {
-				fmt.Println("sending many:", name)
-
-				// if the metrics with the same name result in a distinct set of field names,
-				// we can still flatten them.
-				if mergeable(metrics) {
-					fmt.Println("yay! mergeable:", name)
-					for i := range metrics {
-						if err := flatEvent.Add(o.dataForMetric(metrics[i])); err != nil {
-							return nil, err
-						}
-					}
-				} else {
-					for i := range metrics {
-						ev := libhoney.NewEvent()
-						ev.Timestamp = ts
-						if err := ev.Add(o.dataForMetric(metrics[i])); err != nil {
-							return nil, err
-						}
-						evs = append(evs, ev)
-					}
-				}
-			}
-		}
-
-		// once we've processed all the events for this timestamp, we can add the flat event to the batch
-		evs = append(evs, flatEvent)
-	}
-
-	return evs, nil
-}
-
 // mergeable returns true if the metrics can be merged into a single Honeycomb event
 // without losing information. Specifically, this means that the metrics have
-// disjoint fields an the same list of tags.
+// disjoint fields and the same list of tags.
 func mergeable(ms []telegraf.Metric) bool {
 	var (
 		fields = make(map[string]struct{})
@@ -223,7 +276,7 @@ func mergeable(ms []telegraf.Metric) bool {
 
 		// Check we've never seen any of the fields before.
 		// Fields are unique by their metric name & field key, as we'll
-		// concantenate the two when constructing the honeycomb event.
+		// concatenate the two when constructing the honeycomb event.
 		for _, f := range ms[i].FieldList() {
 			k := ms[i].Name() + f.Key
 			if _, exists := fields[k]; exists {
@@ -237,7 +290,8 @@ func mergeable(ms []telegraf.Metric) bool {
 }
 
 // Close ensures libhoney is closed.
-func (h *Output) Close() error {
-	libhoney.Close()
+func (o *Output) Close() error {
+	o.hnyClient.Flush()
+	o.hnyClient.Close()
 	return nil
 }
