@@ -7,9 +7,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	honeycomb "github.com/dstrelau/telegraf-honeycomb"
 	"github.com/spf13/pflag"
 
+	"github.com/honeycombio/influx2hny"
 	"github.com/honeycombio/libhoney-go"
 )
 
@@ -53,7 +53,7 @@ func main() {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to create libhoney Client: %s", err.Error())
 	}
-	o := honeycomb.NewOutput(client)
+	o := influx2hny.NewOutput(client)
 
 	if flagUnprefixedTags != nil && len(*flagUnprefixedTags) > 0 {
 		o.UnprefixedTags = *flagUnprefixedTags

@@ -1,4 +1,4 @@
-package honeycomb
+package influx2hny
 
 import (
 	"bufio"

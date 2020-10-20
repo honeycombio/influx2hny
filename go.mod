@@ -1,4 +1,4 @@
-module github.com/dstrelau/telegraf-honeycomb
+module github.com/honeycombio/influx2hny
 
 go 1.15
 
