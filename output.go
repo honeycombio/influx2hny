@@ -63,14 +63,19 @@ type Output struct {
 	buffer []telegraf.Metric
 }
 
+// NewOutput returns an Output with default configuration.
+//
+// Public fields can be updated with new configuration, but must be changed
+// before calling Process().
 func NewOutput(hnyClient *libhoney.Client) *Output {
 	return &Output{
 		FlushInterval: 5 * time.Second,
 		MaxBufferSize: 1000,
 		DebugWriter:   ioutil.Discard,
-		metrics:       make(chan telegraf.Metric),
-		hnyClient:     hnyClient,
-		influxParser:  influx.NewParser(influx.NewMetricHandler()),
+
+		metrics:      make(chan telegraf.Metric),
+		hnyClient:    hnyClient,
+		influxParser: influx.NewParser(influx.NewMetricHandler()),
 	}
 }
 

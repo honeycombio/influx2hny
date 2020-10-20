@@ -13,30 +13,32 @@ import (
 	"github.com/honeycombio/libhoney-go"
 )
 
-var (
-	// sets libhoney APIKey
-	flagAPIKey = pflag.StringP("api-key", "k", "", "Honeycomb API Key (required)")
-
-	// sets libhoney Dataset
-	flagDataset = pflag.StringP("dataset", "d", "telegraf", `Honeycomb dataset to send to (default: "telegraf")`)
-
-	// sets libhoney APIHost
-	flagAPIHost = pflag.StringP("api-host", "h", "https://api.honeycomb.io/", `Honeycomb API host (default: "https://api.honeycomb.io/")`)
-
-	// see Output.UnprefixedTags
-	flagUnprefixedTags = pflag.StringSliceP("unprefixed-tags", "t", nil, "List of tags to NOT prefix with metric name when constructing Honeycomb field key (comma-separated; default: none)")
-
-	// sets Output.DebugWriter = os.Stdout
-	flagDebug = pflag.Bool("debug", false, "Enable debug logging on STDOUT (if running inside telegraf, you'll also want to run `telegraf --debug`)")
-)
-
 func main() {
-	if err := pflag.CommandLine.MarkHidden("api-host"); err != nil {
-		panic("BUG: host flag is gone")
-	}
-	pflag.Parse()
+	var (
+		cli      = pflag.NewFlagSet(os.Args[0], pflag.ExitOnError)
+		flagHelp = cli.BoolP("help", "h", false, "Display help and exit")
 
-	if *flagAPIKey == "" {
+		// set libhoney config values
+		flagAPIKey  = cli.StringP("api-key", "k", "", "Honeycomb API Key (required)")
+		flagDataset = cli.StringP("dataset", "d", "telegraf", `Honeycomb dataset to send to (default: "telegraf")`)
+		flagAPIHost = cli.String("api-host", "https://api.honeycomb.io/", `Honeycomb API host (default: "https://api.honeycomb.io/")`)
+
+		// see Output.UnprefixedTags
+		flagUnprefixedTags = cli.StringSliceP("unprefixed-tags", "t", nil, "List of tags to NOT prefix with metric name when constructing Honeycomb field key (comma-separated; default: none)")
+
+		// sets Output.DebugWriter = os.Stdout
+		flagDebug = cli.Bool("debug", false, "Enable debug logging on STDOUT (if running inside telegraf, you'll also want to run `telegraf --debug`)")
+	)
+
+	if err := cli.MarkHidden("api-host"); err != nil {
+		// the --api-key flag was renamed but this check was not?
+		panic(err)
+	}
+
+	// ExitOnError means we can ignore this error
+	_ = cli.Parse(os.Args[1:])
+
+	if *flagHelp || *flagAPIKey == "" {
 		pflag.Usage()
 		os.Exit(1)
 	}
