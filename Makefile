@@ -7,11 +7,8 @@ MAKEFLAGS += --no-builtin-rules
 
 BIN = $(CURDIR)/bin
 
-.PHONY: default
-default: build
-
-.PHONY: build
-build: dist/influx2hny
+.PHONY: all
+all: dist/influx2hny
 
 dist/influx2hny: cmd/influx2hny/main.go *.go go.mod go.sum
 	go build -o $@ $<
@@ -25,3 +22,6 @@ $(BIN):
 
 $(BIN)/golangci-lint: $(BIN)
 	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(BIN) v1.31.0
+
+clean:
+	rm -rf $(BIN) dist/influx2hny

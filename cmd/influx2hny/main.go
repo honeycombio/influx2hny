@@ -75,5 +75,4 @@ func main() {
 	if err := o.Process(ctx, os.Stdin); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %s\n", err.Error())
 	}
-	o.Close()
 }
