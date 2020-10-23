@@ -47,6 +47,7 @@ jobs:
     steps:
       - buildevents/with_job_span:
           steps:
+            - run: buildevents cmd $CIRCLE_WORKFLOW_ID $BUILDEVENTS_SPAN_ID native-deps -- sudo apt update && sudo apt install python-is-python3 python3-pip
             - aws-cli/setup:
                 aws-access-key-id: AWS_ACCESS_KEY_ID
                 aws-secret-access-key: AWS_SECRET_ACCESS_KEY
