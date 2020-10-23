@@ -77,4 +77,5 @@ tag1,tag2` (aka `--unprefixed-tags`) to do this.
 
 `go run ./cmd/influx2hny` should work.
 
-influx2hny also supports a `--debug` flag that will enable debug logging to STDOUT.
+influx2hny also supports a `--debug` flag that will enable some debug logging
+on STDOUT in addition to sending to Honeycomb.
