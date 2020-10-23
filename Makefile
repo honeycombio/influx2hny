@@ -26,7 +26,7 @@ $(PACKAGES:%=dist/%) : dist/% : dist/%/$(CMD) dist/%/$(CMD).sha256
 	sha256sum $* > $@
 
 dist/%/$(CMD) : $(GO_SOURCES)
-	GOOS=$(word 1,$(subst _, ,$*)) GOARCH=$(word 2,$(subst _, ,$*)) go build -trimpath -ldflags "-s -w -X main.BuildVersion=v$(CIRCLE_TAG)" -o $@ ./cmd/influx2hny
+	GOOS=$(word 1,$(subst _, ,$*)) GOARCH=$(word 2,$(subst _, ,$*)) go build -trimpath -ldflags "-s -w -X main.BuildVersion=$(CIRCLE_TAG)" -o $@ ./cmd/influx2hny
 
 .PHONY: lint
 lint: $(BIN)/golangci-lint
