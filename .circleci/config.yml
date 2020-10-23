@@ -1,0 +1,75 @@
+version: 2.1
+
+orbs:
+  aws-cli: circleci/aws-cli@0.1.22
+  buildevents: honeycombio/buildevents@0.2.7
+
+executors:
+  go:
+    docker:
+      - image: cimg/go:1.15.2
+
+commands:
+  save_go_cache:
+    steps:
+      - save_cache:
+          key: cache1-go-mod-{{ checksum "go.sum" }}
+          paths:
+            - go/pkg/mod
+
+  restore_go_cache:
+    steps:
+      - restore_cache:
+          key: cache1-go-mod-{{ checksum "go.sum" }}
+
+jobs:
+  setup:
+    executor: go
+    steps:
+      - buildevents/start_trace
+  watch:
+    executor: go
+    steps:
+      - buildevents/watch_build_and_finish
+  run:
+    executor: go
+    steps:
+      - buildevents/with_job_span:
+          steps:
+            - checkout
+            - run: buildevents cmd $CIRCLE_WORKFLOW_ID $BUILDEVENTS_SPAN_ID build -- make
+            - run: buildevents cmd $CIRCLE_WORKFLOW_ID $BUILDEVENTS_SPAN_ID lint -- make lint
+          # - run: buildevents cmd $CIRCLE_WORKFLOW_ID $BUILDEVENTS_SPAN_ID test -- make test
+
+  release:
+    executor: go
+    steps:
+      - buildevents/with_job_span:
+          steps:
+            - aws-cli/setup:
+                aws-access-key-id: AWS_ACCESS_KEY_ID
+                aws-secret-access-key: AWS_SECRET_ACCESS_KEY
+                aws-region: AWS_REGION
+            - run: buildevents cmd $CIRCLE_WORKFLOW_ID $BUILDEVENTS_SPAN_ID package -- make package
+            # - run: buildevents cmd $CIRCLE_WORKFLOW_ID $BUILDEVENTS_SPAN_ID release -- make release
+
+workflows:
+  version: 2
+  build-hound:
+    jobs:
+      - setup
+      - watch:
+          requires:
+            - setup
+      - build: # runs for all branch and all tags
+          filters:  # necessary since `deploy` has tag filters AND requires `build`
+            tags:
+              only: /.*/
+      - deploy: # runs only for tags starting with 'v' (no branches)
+          requires:
+            - build
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
