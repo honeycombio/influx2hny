@@ -59,14 +59,17 @@ workflows:
   version: 2
   ci:
     jobs:
-      - setup
+      - setup:
+          filters:  # necessary since `release` has tag filters AND requires build -> setup
+            tags:
+              only: /.*/
       # - watch:
       #     requires:
       #       - setup
       - build: # runs for all branch and all tags
           requires:
             - setup
-          filters:  # necessary since `deploy` has tag filters AND requires `build`
+          filters:  # necessary since `release` has tag filters AND requires `build`
             tags:
               only: /.*/
       - release: # runs only for tags starting with 'v' (no branches)
