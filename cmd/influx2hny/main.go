@@ -29,11 +29,6 @@ func main() {
 		flagDebug = pflag.Bool("debug", false, "Enable debug logging on STDOUT (if running inside telegraf, you'll also want to run `telegraf --debug`)")
 	)
 
-	if err := pflag.CommandLine.MarkHidden("api-host"); err != nil {
-		// the --api-key flag was renamed but this check was not?
-		panic(err)
-	}
-
 	pflag.Parse()
 
 	if *flagHelp || *flagAPIKey == "" {
@@ -75,5 +70,5 @@ func main() {
 	if err := o.Process(ctx, os.Stdin); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %s\n", err.Error())
 	}
-	o.Close()
+	client.Close()
 }

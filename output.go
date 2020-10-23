@@ -87,7 +87,10 @@ func (o *Output) Process(ctx context.Context, r io.Reader) error {
 	group, ctx := errgroup.WithContext(ctx)
 	group.Go(func() error { return o.Read(ctx, r) })
 	group.Go(func() error { return o.Aggregate(ctx) })
-	return group.Wait()
+	err := group.Wait()
+	o.hnyClient.Flush()
+	close(o.metrics)
+	return err
 }
 
 func (o *Output) Read(ctx context.Context, r io.Reader) error {
@@ -119,6 +122,7 @@ func (o *Output) Read(ctx context.Context, r io.Reader) error {
 // error occurs.
 func (o *Output) Aggregate(ctx context.Context) error {
 	flushTick := time.NewTicker(o.FlushInterval)
+	defer flushTick.Stop()
 	for {
 		select {
 		case <-ctx.Done():
@@ -292,11 +296,4 @@ func mergeable(ms []telegraf.Metric) bool {
 	}
 
 	return true
-}
-
-// Close ensures libhoney is closed.
-func (o *Output) Close() error {
-	o.hnyClient.Flush()
-	o.hnyClient.Close()
-	return nil
 }
