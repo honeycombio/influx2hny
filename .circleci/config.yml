@@ -31,7 +31,7 @@ jobs:
     executor: go
     steps:
       - buildevents/watch_build_and_finish
-  run:
+  build:
     executor: go
     steps:
       - buildevents/with_job_span:
@@ -40,6 +40,7 @@ jobs:
             - run: buildevents cmd $CIRCLE_WORKFLOW_ID $BUILDEVENTS_SPAN_ID build -- make
             - run: buildevents cmd $CIRCLE_WORKFLOW_ID $BUILDEVENTS_SPAN_ID lint -- make lint
           # - run: buildevents cmd $CIRCLE_WORKFLOW_ID $BUILDEVENTS_SPAN_ID test -- make test
+            - save_go_cache
 
   release:
     executor: go
@@ -50,22 +51,25 @@ jobs:
                 aws-access-key-id: AWS_ACCESS_KEY_ID
                 aws-secret-access-key: AWS_SECRET_ACCESS_KEY
                 aws-region: AWS_REGION
+            - restore_go_cache
             - run: buildevents cmd $CIRCLE_WORKFLOW_ID $BUILDEVENTS_SPAN_ID package -- make package
             # - run: buildevents cmd $CIRCLE_WORKFLOW_ID $BUILDEVENTS_SPAN_ID release -- make release
 
 workflows:
   version: 2
-  build-hound:
+  ci:
     jobs:
       - setup
-      - watch:
+      # - watch:
+      #     requires:
+      #       - setup
+      - build: # runs for all branch and all tags
           requires:
             - setup
-      - build: # runs for all branch and all tags
           filters:  # necessary since `deploy` has tag filters AND requires `build`
             tags:
               only: /.*/
-      - deploy: # runs only for tags starting with 'v' (no branches)
+      - release: # runs only for tags starting with 'v' (no branches)
           requires:
             - build
           filters:
