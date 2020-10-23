@@ -64,9 +64,10 @@ workflows:
           filters:  # necessary since `release` has tag filters AND requires build -> setup
             tags:
               only: /.*/
-      # - watch:
-      #     requires:
-      #       - setup
+      - watch:
+          context: Honeycomb Secrets
+          requires:
+            - setup
       - build: # runs for all branch and all tags
           requires:
             - setup
@@ -74,6 +75,7 @@ workflows:
             tags:
               only: /.*/
       - release: # runs only for tags starting with 'v' (no branches)
+          context: Honeycomb Secrets
           requires:
             - build
           filters:
