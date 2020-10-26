@@ -196,7 +196,6 @@ func (o *Output) Flush() {
 		// The one event for all the metrics in this timestamp that can be flattened
 		flatEvent := o.hnyClient.NewEvent()
 		flatEvent.Timestamp = ts
-		eventsCount++
 
 		// For each metric, check if it's mergeable (a single event or disjoint
 		// fields with the same tags). If it is, it can go in the flatEvent.
@@ -227,8 +226,11 @@ func (o *Output) Flush() {
 		}
 
 		// once we've aggregated everything for that timestamp, send the flattened event.
-		if err := flatEvent.Send(); err != nil {
-			o.debug("libhoney Send error: %s\n", err.Error())
+		if len(flatEvent.Fields()) > 0 {
+			eventsCount++
+			if err := flatEvent.Send(); err != nil {
+				o.debug("libhoney Send error: %s\n", err.Error())
+			}
 		}
 	}
 }

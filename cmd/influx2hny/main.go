@@ -13,25 +13,41 @@ import (
 	"github.com/honeycombio/libhoney-go"
 )
 
+var BuildVersion string
+
 func main() {
 	var (
-		flagHelp = pflag.BoolP("help", "h", false, "Display help and exit")
+		flagHelp    = pflag.BoolP("help", "h", false, "Display help and exit")
+		flagVersion = pflag.BoolP("version", "V", false, "Print version and exit")
 
 		// set libhoney config values
 		flagAPIKey  = pflag.StringP("api-key", "k", "", "Honeycomb API Key (required)")
-		flagDataset = pflag.StringP("dataset", "d", "telegraf", `Honeycomb dataset to send to (default: "telegraf")`)
-		flagAPIHost = pflag.String("api-host", "https://api.honeycomb.io/", `Honeycomb API host (default: "https://api.honeycomb.io/")`)
+		flagDataset = pflag.StringP("dataset", "d", "telegraf", `Honeycomb dataset to send to`)
+		flagAPIHost = pflag.String("api-host", "https://api.honeycomb.io/", `Honeycomb API host`)
 
 		// see Output.UnprefixedTags
-		flagUnprefixedTags = pflag.StringSliceP("unprefixed-tags", "t", nil, "List of tags to NOT prefix with metric name when constructing Honeycomb field key (comma-separated; default: none)")
+		flagUnprefixedTags = pflag.StringSliceP("unprefixed-tags", "t", nil, "List of tags to NOT prefix with metric name when constructing Honeycomb field key (comma-separated)")
 
 		// sets Output.DebugWriter = os.Stdout
-		flagDebug = pflag.Bool("debug", false, "Enable debug logging on STDOUT (if running inside telegraf, you'll also want to run `telegraf --debug`)")
+		flagDebug = pflag.Bool("debug", false, "Enable debug logging on STDOUT")
 	)
 
 	pflag.Parse()
 
-	if *flagHelp || *flagAPIKey == "" {
+	if *flagHelp {
+		pflag.Usage()
+		os.Exit(1)
+	}
+	if *flagVersion {
+		if BuildVersion != "" {
+			fmt.Println(BuildVersion)
+		} else {
+			fmt.Println("Ad-hoc")
+		}
+		os.Exit(1)
+	}
+
+	if *flagAPIKey == "" {
 		pflag.Usage()
 		os.Exit(1)
 	}
