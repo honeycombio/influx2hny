@@ -9,15 +9,18 @@ CMD = influx2hny
 BIN = $(CURDIR)/bin
 GO_SOURCES := cmd/$(CMD)/main.go $(wildcard *.go) go.mod go.sum
 
-CIRCLE_TAG ?= 0.0.0
-PACKAGES = dist/linux_amd64 dist/linux_arm64
-
 # default target: will get you a debug build in the top-level directory.
 # aliased as "make build"
 .PHONY: build
 build: $(CMD)
 $(CMD): $(GO_SOURCES)
 	go build -o $@ ./cmd/$(CMD)
+
+#########################
+### PACKAGE / RELEASE ###
+#########################
+
+PACKAGES = dist/linux_amd64 dist/linux_arm64
 
 # package: each target in $PACKGAES built into a directory under dist/
 .PHONY: package
@@ -27,12 +30,23 @@ $(PACKAGES): dist/% : dist/%/$(CMD) dist/%/$(CMD).sha256
 %.sha256: %
 	sha256sum $* > $@
 
+CIRCLE_TAG ?=
+RELEASE_VERSION ?= $(or $(CIRCLE_TAG), $(shell git rev-parse --short HEAD))
+RELEASE_BUCKET ?= honeycomb-builds
+
 # builds the actual binary for each OS/ARCH in $PACKAGES
 # this pattern matches something like /dist/linux_arm64/influx2hny
 # $* is the matched pattern, which is split on '_' to get the GOOS & GOARCH values
-# CIRCLE_TAG is set automatically in CI
 dist/%/$(CMD): $(GO_SOURCES)
-	GOOS=$(word 1,$(subst _, ,$*)) GOARCH=$(word 2,$(subst _, ,$*)) go build -trimpath -ldflags "-s -w -X main.BuildVersion=$(CIRCLE_TAG)" -o $@ ./cmd/$(CMD)
+	GOOS=$(word 1,$(subst _, ,$*)) GOARCH=$(word 2,$(subst _, ,$*)) go build -trimpath -ldflags "-s -w -X main.BuildVersion=$(RELEASE_VERSION)" -o $@ ./cmd/$(CMD)
+
+.PHONY: release
+release: $(PACKAGES)
+	aws s3 sync dist/ s3://$(RELEASE_BUCKET)/honeycombio/influx2hny/$(RELEASE_VERSION)
+
+###############
+### TOOLING ###
+###############
 
 .PHONY: lint
 lint: $(BIN)/golangci-lint

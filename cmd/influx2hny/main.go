@@ -29,7 +29,7 @@ func main() {
 		flagUnprefixedTags = pflag.StringSliceP("unprefixed-tags", "t", nil, "List of tags to NOT prefix with metric name when constructing Honeycomb field key (comma-separated)")
 
 		// sets Output.DebugWriter = os.Stdout
-		flagDebug = pflag.Bool("debug", false, "Enable debug logging on STDOUT (if running inside telegraf, you'll also want to run `telegraf --debug`)")
+		flagDebug = pflag.Bool("debug", false, "Enable debug logging on STDOUT")
 	)
 
 	pflag.Parse()
