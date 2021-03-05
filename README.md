@@ -1,4 +1,4 @@
-# influx2hny
+# influx2hny [![CircleCI](https://circleci.com/gh/honeycombio/influx2hny.svg?style=shield)](https://circleci.com/gh/honeycombio/influx2hny)
 
 **Support Status:** prototyping (alpha/beta/user-beware)
 
