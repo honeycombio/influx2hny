@@ -4,10 +4,26 @@ orbs:
   aws-cli: circleci/aws-cli@0.1.22
   buildevents: honeycombio/buildevents@0.2.7
 
+# enable a job when tag created (tag create is ignored by default)
+# runs for all branches and all tags
+filters_always: &filters_always
+  filters:
+    tags:
+      only: /.*/
+
+# restrict a job to only run when a version tag (vNNNN) is created
+# does not run for any branch update
+filters_publish: &filters_publish
+  filters:
+    tags:
+      only: /^v[0-9].*/
+    branches:
+      ignore: /.*/
+
 executors:
   go:
     docker:
-      - image: cimg/go:1.15.2
+      - image: cimg/go:1.15.8
 
 commands:
   save_go_cache:
@@ -37,9 +53,15 @@ jobs:
       - buildevents/with_job_span:
           steps:
             - checkout
-            - run: buildevents cmd $CIRCLE_WORKFLOW_ID $BUILDEVENTS_SPAN_ID build -- make
-            - run: buildevents cmd $CIRCLE_WORKFLOW_ID $BUILDEVENTS_SPAN_ID lint -- make lint
-          # - run: buildevents cmd $CIRCLE_WORKFLOW_ID $BUILDEVENTS_SPAN_ID test -- make test
+            - buildevents/berun:
+                bename: build
+                becommand: make
+            - buildevents/berun:
+                bename: lint
+                becommand: make lint
+            # - buildevents/berun:
+            #     bename: test
+            #     becommand: make test
             - save_go_cache
             - persist_to_workspace:
                 root: .
@@ -52,39 +74,38 @@ jobs:
           steps:
             - attach_workspace:
                 at: .
-            - run: buildevents cmd $CIRCLE_WORKFLOW_ID $BUILDEVENTS_SPAN_ID native-deps -- sudo apt update && sudo apt install python-is-python3 python3-pip
+            - buildevents/berun:
+                bename: native-deps
+                becommand: sudo apt update && sudo apt install python-is-python3 python3-pip
             - aws-cli/setup:
                 aws-access-key-id: AWS_ACCESS_KEY_ID
                 aws-secret-access-key: AWS_SECRET_ACCESS_KEY
                 aws-region: AWS_REGION
             - restore_go_cache
-            - run: buildevents cmd $CIRCLE_WORKFLOW_ID $BUILDEVENTS_SPAN_ID package -- make package
-            - run: buildevents cmd $CIRCLE_WORKFLOW_ID $BUILDEVENTS_SPAN_ID release -- make release
+            - buildevents/berun:
+                bename: package
+                becommand: make package
+            - buildevents/berun:
+                bename: release
+                becommand: make release
 
 workflows:
   version: 2
   ci:
     jobs:
       - setup:
-          filters:  # necessary since `release` has tag filters AND requires build -> setup
-            tags:
-              only: /.*/
+          <<: *filters_always
       - watch:
-          context: Honeycomb Secrets
+          <<: *filters_always
+          context: Honeycomb Secrets for Public Repos
           requires:
             - setup
-      - build: # runs for all branch and all tags
+      - build:
+          <<: *filters_always
           requires:
             - setup
-          filters:  # necessary since `release` has tag filters AND requires `build`
-            tags:
-              only: /.*/
-      - release: # runs only for tags starting with 'v' (no branches)
-          context: Honeycomb Secrets
+      - release:
+          <<: *filters_publish
+          context: Honeycomb Secrets for Public Repos
           requires:
             - build
-          filters:
-            tags:
-              only: /^v.*/
-            branches:
-              ignore: /.*/
