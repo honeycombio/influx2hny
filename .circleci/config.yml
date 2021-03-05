@@ -4,6 +4,22 @@ orbs:
   aws-cli: circleci/aws-cli@0.1.22
   buildevents: honeycombio/buildevents@0.2.7
 
+# enable a job when tag created (tag create is ignored by default)
+# runs for all branches and all tags
+filters_always: &filters_always
+  filters:
+    tags:
+      only: /.*/
+
+# restrict a job to only run when a version tag (vNNNN) is created
+# does not run for any branch update
+filters_publish: &filters_publish
+  filters:
+    tags:
+      only: /^v[0-9].*/
+    branches:
+      ignore: /.*/
+
 executors:
   go:
     docker:
@@ -66,25 +82,18 @@ workflows:
   ci:
     jobs:
       - setup:
-          filters:  # necessary since `release` has tag filters AND requires build -> setup
-            tags:
-              only: /.*/
+          <<: *filters_always
       - watch:
+          <<: *filters_always
           context: Honeycomb Secrets for Public Repos
           requires:
             - setup
-      - build: # runs for all branch and all tags
+      - build:
+          <<: *filters_always
           requires:
             - setup
-          filters:  # necessary since `release` has tag filters AND requires `build`
-            tags:
-              only: /.*/
-      - release: # runs only for tags starting with 'v' (no branches)
+      - release:
+          <<: *filters_publish
           context: Honeycomb Secrets for Public Repos
           requires:
             - build
-          filters:
-            tags:
-              only: /^v.*/
-            branches:
-              ignore: /.*/
