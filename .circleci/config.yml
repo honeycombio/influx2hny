@@ -7,7 +7,7 @@ orbs:
 executors:
   go:
     docker:
-      - image: cimg/go:1.15.2
+      - image: cimg/go:1.15.8
 
 commands:
   save_go_cache:
