@@ -1,5 +1,7 @@
 # influx2hny
 
+**Support Status:** prototyping (alpha/beta/user-beware)
+
 influx2hny reads influx-formatted metrics on STDIN and sends them to a
 Honeycomb dataset. It is meant to be used as an `execd` output plugin for
 telegraf.
