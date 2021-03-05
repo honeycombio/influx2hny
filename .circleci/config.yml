@@ -53,9 +53,15 @@ jobs:
       - buildevents/with_job_span:
           steps:
             - checkout
-            - run: buildevents cmd $CIRCLE_WORKFLOW_ID $BUILDEVENTS_SPAN_ID build -- make
-            - run: buildevents cmd $CIRCLE_WORKFLOW_ID $BUILDEVENTS_SPAN_ID lint -- make lint
-          # - run: buildevents cmd $CIRCLE_WORKFLOW_ID $BUILDEVENTS_SPAN_ID test -- make test
+            - buildevents/berun:
+                bename: build
+                becommand: make
+            - buildevents/berun:
+                bename: lint
+                becommand: make lint
+            # - buildevents/berun:
+            #     bename: test
+            #     becommand: make test
             - save_go_cache
             - persist_to_workspace:
                 root: .
@@ -68,14 +74,20 @@ jobs:
           steps:
             - attach_workspace:
                 at: .
-            - run: buildevents cmd $CIRCLE_WORKFLOW_ID $BUILDEVENTS_SPAN_ID native-deps -- sudo apt update && sudo apt install python-is-python3 python3-pip
+            - buildevents/berun:
+                bename: native-deps
+                becommand: sudo apt update && sudo apt install python-is-python3 python3-pip
             - aws-cli/setup:
                 aws-access-key-id: AWS_ACCESS_KEY_ID
                 aws-secret-access-key: AWS_SECRET_ACCESS_KEY
                 aws-region: AWS_REGION
             - restore_go_cache
-            - run: buildevents cmd $CIRCLE_WORKFLOW_ID $BUILDEVENTS_SPAN_ID package -- make package
-            - run: buildevents cmd $CIRCLE_WORKFLOW_ID $BUILDEVENTS_SPAN_ID release -- make release
+            - buildevents/berun:
+                bename: package
+                becommand: make package
+            - buildevents/berun:
+                bename: release
+                becommand: make release
 
 workflows:
   version: 2
