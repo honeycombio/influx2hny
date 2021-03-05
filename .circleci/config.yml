@@ -70,7 +70,7 @@ workflows:
             tags:
               only: /.*/
       - watch:
-          context: Honeycomb Secrets
+          context: Honeycomb Secrets for Public Repos
           requires:
             - setup
       - build: # runs for all branch and all tags
@@ -80,7 +80,7 @@ workflows:
             tags:
               only: /.*/
       - release: # runs only for tags starting with 'v' (no branches)
-          context: Honeycomb Secrets
+          context: Honeycomb Secrets for Public Repos
           requires:
             - build
           filters:
