@@ -38,6 +38,18 @@ commands:
       - restore_cache:
           key: cache1-go-mod-{{ checksum "go.sum" }}
 
+  build:
+    steps:
+      - buildevents/berun:
+          bename: build
+          becommand: make
+
+  lint:
+    steps:
+      - buildevents/berun:
+          bename: lint
+          becommand: make lint
+
 jobs:
   setup:
     executor: go
@@ -53,15 +65,9 @@ jobs:
       - buildevents/with_job_span:
           steps:
             - checkout
-            - buildevents/berun:
-                bename: build
-                becommand: make
-            - buildevents/berun:
-                bename: lint
-                becommand: make lint
-            # - buildevents/berun:
-            #     bename: test
-            #     becommand: make test
+            - build
+            - lint
+            # - test
             - save_go_cache
             - persist_to_workspace:
                 root: .
