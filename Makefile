@@ -83,7 +83,7 @@ publish_github: github_prereqs package
 	@echo "+++ publishing these assets to GitHub, tag $(RELEASE_VERSION)"
 	@ls -l artifacts/*
 	@cat artifacts/checksums.txt
-	@echo ghr -draft \
+	@ghr -draft \
 	     -name ${RELEASE_VERSION} \
 	     -token ${GITHUB_TOKEN} \
 	     -username ${CIRCLE_PROJECT_USERNAME} \
@@ -106,7 +106,7 @@ publish_s3: s3_prereqs package
 	@echo "+++ publishing these artfacts to $(RELEASE_BUCKET) bucket, version $(RELEASE_VERSION)"
 	@ls -l artifacts/*
 	@cat artifacts/checksums.txt
-	echo aws s3 sync artifacts/ s3://$(RELEASE_BUCKET)/honeycombio/influx2hny/$(RELEASE_VERSION)
+	@aws s3 sync artifacts/ s3://$(RELEASE_BUCKET)/honeycombio/influx2hny/$(RELEASE_VERSION)
 
 .PHONY: s3_prereqs
 s3_prereqs: awscli_present

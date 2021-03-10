@@ -120,8 +120,7 @@ workflows:
           requires:
             - setup
       - release:
-          # <<: *filters_publish
-          <<: *filters_always # only for testing in PR
+          <<: *filters_publish
           context: Honeycomb Secrets for Public Repos
           requires:
             - build
