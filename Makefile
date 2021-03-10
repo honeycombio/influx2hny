@@ -15,6 +15,11 @@ build: $(CMD)
 $(CMD): $(GO_SOURCES)
 	go build -o $@ ./cmd/$(CMD)
 
+.PHONY: lint
+#: run the linter
+lint: $(BIN)/golangci-lint
+	$(BIN)/golangci-lint run ./...
+
 #########################
 ### PACKAGE / RELEASE ###
 #########################
@@ -71,11 +76,6 @@ release: package
 ###############
 ### TOOLING ###
 ###############
-
-.PHONY: lint
-#: run the linter
-lint: $(BIN)/golangci-lint
-	$(BIN)/golangci-lint run ./...
 
 $(BIN):
 	mkdir -p $@
