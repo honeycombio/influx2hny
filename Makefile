@@ -70,7 +70,7 @@ package: $(BINARIES) checksums
 #########################
 
 CIRCLE_TAG ?=
-RELEASE_VERSION ?= $(or $(CIRCLE_TAG), $(shell git rev-parse --short HEAD))
+RELEASE_VERSION ?= $(or $(CIRCLE_TAG), $(shell git describe --tags))
 RELEASE_BUCKET ?= honeycomb-builds
 
 .PHONY: release
