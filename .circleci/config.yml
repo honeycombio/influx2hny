@@ -1,7 +1,7 @@
 version: 2.1
 
 orbs:
-  aws-cli: circleci/aws-cli@0.1.22
+  aws-cli: circleci/aws-cli@1.4.0
   buildevents: honeycombio/buildevents@0.2.7
 
 # enable a job when tag created (tag create is ignored by default)
@@ -46,6 +46,26 @@ commands:
       - buildevents/berun:
           bename: lint
           becommand: make lint
+  install_ghr:
+    steps:
+      - run:
+          name: Install ghr for drafting GitHub Releases
+          command: go get github.com/tcnksm/ghr
+  build_packages:
+    steps:
+      - buildevents/berun:
+          bename: build_packages
+          becommand: make package
+  draft_github_release:
+    steps:
+      - buildevents/berun:
+          bename: draft_github_release
+          becommand: make publish_github
+  sync_s3_artifacts:
+    steps:
+      - buildevents/berun:
+          bename: sync_s3_artifacts
+          becommand: make publish_s
 
 jobs:
   setup:
@@ -70,36 +90,19 @@ jobs:
             - persist_to_workspace:
                 root: .
                 paths: [ . ]
-  package:
-    executor: go
-    steps:
-      - buildevents/with_job_span:
-          steps:
-            - checkout
-            - buildevents/berun:
-                bename: packaging
-                becommand: make package
-            - persist_to_workspace:
-                root: .
-                paths: [ . ]
   release:
     executor: go
     steps:
       - buildevents/with_job_span:
           steps:
+            - install_ghr
+            - aws-cli/install
+            - aws-cli/setup
             - attach_workspace:
                 at: .
-            - buildevents/berun:
-                bename: native-deps
-                becommand: sudo apt update && sudo apt install python-is-python3 python3-pip
-            - aws-cli/setup:
-                aws-access-key-id: AWS_ACCESS_KEY_ID
-                aws-secret-access-key: AWS_SECRET_ACCESS_KEY
-                aws-region: AWS_REGION
-            - restore_go_cache
-            - buildevents/berun:
-                bename: release
-                becommand: make release
+            - build_packages
+            - draft_github_release
+            - sync_s3_artifacts
 
 workflows:
   version: 2
@@ -116,13 +119,9 @@ workflows:
           <<: *filters_always
           requires:
             - setup
-      - package:
-          <<: *filters_always
-          requires:
-            - setup
       - release:
-          <<: *filters_publish
+          # <<: *filters_publish
+          <<: *filters_always # only for testing in PR
           context: Honeycomb Secrets for Public Repos
           requires:
             - build
-            - package

@@ -65,13 +65,53 @@ artifacts/checksums.txt: $(BINARIES)
 #: cross-compile for each OS and ARCH, find binaries and checksums in artifacts/
 package: $(BINARIES) checksums
 
+#########################
+###     RELEASES      ###
+#########################
+
 CIRCLE_TAG ?=
 RELEASE_VERSION ?= $(or $(CIRCLE_TAG), $(shell git rev-parse --short HEAD))
 RELEASE_BUCKET ?= honeycomb-builds
 
 .PHONY: release
-release: package
-	aws s3 sync artifacts/ s3://$(RELEASE_BUCKET)/honeycombio/influx2hny/$(RELEASE_VERSION)
+#: perform all the publish_* tasks
+release: publish_github publish_s3
+
+.PHONY: publish_github
+#: draft a GitHub release for current commit/tag and upload builds as its assets
+publish_github: github_prereqs package
+	@echo "+++ publishing these assets to GitHub, tag $(RELEASE_VERSION)"
+	@ls -l artifacts/*
+	@cat artifacts/checksums.txt
+	@echo ghr -draft \
+	     -name ${RELEASE_VERSION} \
+	     -token ${GITHUB_TOKEN} \
+	     -username ${CIRCLE_PROJECT_USERNAME} \
+	     -repository ${CIRCLE_PROJECT_REPONAME} \
+	     -commitish ${CIRCLE_SHA1} \
+	     ${RELEASE_VERSION} \
+	     ~/artifacts
+
+.PHONY: github_prereqs
+github_prereqs: ghr_present
+	@:$(call check_defined, RELEASE_VERSION, the tag from which to create this release)
+	@:$(call check_defined, GITHUB_TOKEN, auth to create this release)
+	@:$(call check_defined, CIRCLE_PROJECT_USERNAME, user who will create this release)
+	@:$(call check_defined, CIRCLE_PROJECT_REPONAME, the repository getting a new release)
+	@:$(call check_defined, CIRCLE_SHA1, the git ref to associate with this release)
+
+.PHONY: publish_s3
+#: upload builds to the S3 bucket defined as RELEASE_BUCKET
+publish_s3: s3_prereqs package
+	@echo "+++ publishing these artfacts to $(RELEASE_BUCKET) bucket, version $(RELEASE_VERSION)"
+	@ls -l artifacts/*
+	@cat artifacts/checksums.txt
+	echo aws s3 sync artifacts/ s3://$(RELEASE_BUCKET)/honeycombio/influx2hny/$(RELEASE_VERSION)
+
+.PHONY: s3_prereqs
+s3_prereqs: awscli_present
+	@:$(call check_defined, RELEASE_BUCKET, name of bucket to receive uploaded artifacts)
+	@:$(call check_defined, RELEASE_VERSION, the version number of this release)
 
 ###############
 ### TOOLING ###
@@ -83,9 +123,25 @@ $(BIN):
 $(BIN)/golangci-lint: $(BIN)
 	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(BIN) v1.31.0
 
+.PHONY: ghr_present
+ghr_present:
+	@which ghr || (echo "ghr missing; required to create release at GitHub"; exit 1)
+
+.PHONY: awscli_present
+awscli_present:
+	@which aws || (echo "aws cli missing; required to push builds to S3"; exit 1)
+
 .PHONY: clean
 #: clean up
 clean:
 	rm -f ./$(CMD)
 	rm -rf dist
 	rm -rf artifacts
+
+check_defined = \
+    $(strip $(foreach 1,$1, \
+        $(call __check_defined,$1,$(strip $(value 2)))))
+__check_defined = \
+    $(if $(value $1),, \
+        $(error Undefined $1$(if $2, ($2))$(if $(value @), \
+                required by target `$@')))
