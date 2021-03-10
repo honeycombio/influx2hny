@@ -26,16 +26,6 @@ executors:
       - image: cimg/go:1.15.8
 
 commands:
-  save_go_cache:
-    steps:
-      - save_cache:
-          key: cache1-go-mod-{{ checksum "go.sum" }}
-          paths:
-            - go/pkg/mod
-  restore_go_cache:
-    steps:
-      - restore_cache:
-          key: cache1-go-mod-{{ checksum "go.sum" }}
   build:
     steps:
       - buildevents/berun:
@@ -46,11 +36,6 @@ commands:
       - buildevents/berun:
           bename: lint
           becommand: make lint
-  install_ghr:
-    steps:
-      - run:
-          name: Install ghr for drafting GitHub Releases
-          command: go get github.com/tcnksm/ghr
   build_packages:
     steps:
       - buildevents/berun:
@@ -65,7 +50,22 @@ commands:
     steps:
       - buildevents/berun:
           bename: sync_s3_artifacts
-          becommand: make publish_s
+          becommand: make publish_s3
+  save_go_cache:
+    steps:
+      - save_cache:
+          key: cache1-go-mod-{{ checksum "go.sum" }}
+          paths:
+            - go/pkg/mod
+  restore_go_cache:
+    steps:
+      - restore_cache:
+          key: cache1-go-mod-{{ checksum "go.sum" }}
+  install_ghr:
+    steps:
+      - run:
+          name: Install ghr for drafting GitHub Releases
+          command: go get github.com/tcnksm/ghr
 
 jobs:
   setup:
