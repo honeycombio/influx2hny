@@ -21,7 +21,7 @@ lint: $(BIN)/golangci-lint
 	$(BIN)/golangci-lint run ./...
 
 #########################
-### PACKAGE / RELEASE ###
+###     PACKAGING     ###
 #########################
 
 # Which operating systems and architectures will we cross-compile for?
@@ -48,7 +48,7 @@ $(BINARIES): ARCH = $(word 2,$(subst -, ,$*))
 
 # builds the actual binary for each OS/ARCH listed in $OSARCHS
 $(BINARIES): artifacts/$(CMD)-%: artifacts
-	@echo "building: $@"
+	@echo "+++ building: $@"
 	GOOS=$(OS) GOARCH=$(ARCH) \
 	  go build -trimpath \
 	           -ldflags "-s -w -X main.BuildVersion=$(RELEASE_VERSION)" \
@@ -59,7 +59,7 @@ $(BINARIES): artifacts/$(CMD)-%: artifacts
 checksums: artifacts/checksums.txt
 artifacts/checksums.txt: $(BINARIES)
 	@cd artifacts && shasum -a256 * > checksums.txt
-	@echo "checksums for builds saved to $@"
+	@echo " * checksums for builds saved to $@"
 
 .PHONY: package
 #: cross-compile for each OS and ARCH, find binaries and checksums in artifacts/
