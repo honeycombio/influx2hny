@@ -10,4 +10,6 @@ updates:
     schedule:
       interval: "monthly"
     labels:
-      - "type: maintenance"
+      - "type: dependencies"
+    reviewers:
+      - "honeycombio/telemetry-team"
