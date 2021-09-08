@@ -1,9 +1,7 @@
 # influx2hny
 
-[![OSS Lifecycle](https://img.shields.io/osslifecycle/honeycombio/influx2hny?color=pink)](https://github.com/honeycombio/home/blob/main/honeycomb-oss-lifecycle-and-practices.md)
+[![OSS Lifecycle](https://img.shields.io/osslifecycle/honeycombio/influx2hny)](https://github.com/honeycombio/home/blob/main/honeycomb-oss-lifecycle-and-practices.md)
 [![CircleCI](https://circleci.com/gh/honeycombio/influx2hny.svg?style=shield)](https://circleci.com/gh/honeycombio/influx2hny)
-
-**STATUS: this project is being sunset.** See https://github.com/honeycombio/influx2hny/issues/10
 
 influx2hny reads influx-formatted metrics on STDIN and sends them to a
 Honeycomb dataset. It is meant to be used as an `execd` output plugin for
