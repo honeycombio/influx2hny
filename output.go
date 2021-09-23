@@ -279,7 +279,7 @@ func mergeable(ms []telegraf.Metric) bool {
 			// Docs say that this returns ordered, so comparing without sorting
 			// should be safe.
 			for j, t := range ms[i].TagList() {
-				if tags[j].Key != t.Key || tags[j].Value != t.Value {
+				if j >= len(tags) || tags[j].Key != t.Key || tags[j].Value != t.Value {
 					return false
 				}
 			}
