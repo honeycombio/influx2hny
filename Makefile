@@ -90,7 +90,7 @@ publish_github: github_prereqs package
 	     -repository ${CIRCLE_PROJECT_REPONAME} \
 	     -commitish ${CIRCLE_SHA1} \
 	     ${RELEASE_VERSION} \
-	     ~/artifacts
+	     artifacts/
 
 .PHONY: github_prereqs
 github_prereqs: ghr_present
