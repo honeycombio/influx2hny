@@ -1,6 +1,6 @@
 # influx2hny
 
-[![OSS Lifecycle](https://img.shields.io/osslifecycle/honeycombio/influx2hny)](https://github.com/honeycombio/home/blob/main/honeycomb-oss-lifecycle-and-practices.md)
+[![OSS Lifecycle](https://img.shields.io/osslifecycle/honeycombio/influx2hny?color=success)](https://github.com/honeycombio/home/blob/main/honeycomb-oss-lifecycle-and-practices.md)
 [![CircleCI](https://circleci.com/gh/honeycombio/influx2hny.svg?style=shield)](https://circleci.com/gh/honeycombio/influx2hny)
 
 influx2hny reads influx-formatted metrics on STDIN and sends them to a
