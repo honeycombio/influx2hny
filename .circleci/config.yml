@@ -23,7 +23,7 @@ filters_publish: &filters_publish
 executors:
   go:
     docker:
-      - image: cimg/go:1.17
+      - image: cimg/go:1.18
 
 commands:
   build:
