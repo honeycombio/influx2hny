@@ -31,11 +31,11 @@ commands:
       - buildevents/berun:
           bename: build
           becommand: make
-  lint:
-    steps:
-      - buildevents/berun:
-          bename: lint
-          becommand: make lint
+  # lint: # this uses golangci-lint which isn't compatible with go1.18
+  #   steps:
+  #     - buildevents/berun:
+  #         bename: lint
+  #         becommand: make lint
   build_packages:
     steps:
       - buildevents/berun:
@@ -84,7 +84,7 @@ jobs:
             - buildevents/start_trace
             - checkout
             - build
-            - lint
+            # - lint
             # - test
             - save_go_cache
             - persist_to_workspace:
