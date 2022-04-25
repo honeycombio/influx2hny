@@ -1,8 +1,16 @@
 # Influx2hny Changelog
 
+## 0.1.3 2022-04-26
+
+### Maintenance
+
+- maint: update circleci image to cimg/go:1.18 (#31) | [@JamieDanielson](https://github.com/JamieDanielson)
+  - fixes openSSL CVE
+- gh: add re-triage workflow (#23) | [@vreynolds](https://github.com/vreynolds)
+
 ## 0.1.2 2021-11-05
 
-### Maintenance
+### Maintenance
 
 - Update go to v1.17 (#21)
 - update libhoney-go to v1.15.6 (#20)
