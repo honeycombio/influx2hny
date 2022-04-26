@@ -83,7 +83,6 @@ jobs:
           steps:
             - buildevents/start_trace
             - checkout
-            - install_ghr
             - build
             # - lint
             # - test
@@ -101,9 +100,9 @@ jobs:
             - aws-cli/setup
             - attach_workspace:
                 at: .
-            - build_packages
-            - draft_github_release
-            - sync_s3_artifacts
+#            - build_packages
+#            - draft_github_release
+#            - sync_s3_artifacts
 
 workflows:
   version: 2
@@ -121,7 +120,8 @@ workflows:
           requires:
             - setup
       - release:
-          <<: *filters_publish
+#          <<: *filters_publish
+          <<: *filters_always
           context: Honeycomb Secrets for Public Repos
           requires:
             - build
