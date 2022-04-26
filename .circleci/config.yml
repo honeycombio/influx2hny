@@ -100,9 +100,9 @@ jobs:
             - aws-cli/setup
             - attach_workspace:
                 at: .
-#            - build_packages
-#            - draft_github_release
-#            - sync_s3_artifacts
+            - build_packages
+            - draft_github_release
+            - sync_s3_artifacts
 
 workflows:
   version: 2
@@ -120,8 +120,7 @@ workflows:
           requires:
             - setup
       - release:
-#          <<: *filters_publish
-          <<: *filters_always
+          <<: *filters_publish
           context: Honeycomb Secrets for Public Repos
           requires:
             - build
