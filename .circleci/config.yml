@@ -83,6 +83,7 @@ jobs:
           steps:
             - buildevents/start_trace
             - checkout
+            - install_ghr
             - build
             # - lint
             # - test
