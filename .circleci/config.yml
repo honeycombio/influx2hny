@@ -65,7 +65,7 @@ commands:
     steps:
       - run:
           name: Install ghr for drafting GitHub Releases
-          command: go get github.com/tcnksm/ghr
+          command: go install github.com/tcnksm/ghr@latest
 
 jobs:
   setup:
