@@ -11,6 +11,16 @@ filters_always: &filters_always
     tags:
       only: /.*/
 
+# do not run jobs on external PRs and dependabot
+filters_internal: &filters_internal
+  filters:
+    tags:
+      only: /.*/
+    branches:
+      ignore:
+        - /pull\/.*/
+        - /dependabot\/.*/
+
 # restrict a job to only run when a version tag (vNNNN) is created
 # does not run for any branch update
 filters_publish: &filters_publish
@@ -111,7 +121,7 @@ workflows:
       - setup:
           <<: *filters_always
       - watch:
-          <<: *filters_always
+          <<: *filters_internal
           context: Honeycomb Secrets for Public Repos
           requires:
             - setup
