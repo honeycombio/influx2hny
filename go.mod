@@ -6,7 +6,7 @@ require (
 	github.com/honeycombio/libhoney-go v1.15.6
 	github.com/influxdata/telegraf v1.15.3
 	github.com/spf13/pflag v1.0.5
-	github.com/stretchr/testify v1.6.1
+	github.com/stretchr/testify v1.7.2
 	golang.org/x/sync v0.0.0-20200317015054-43a5402ce75a
 )
 
@@ -20,5 +20,5 @@ require (
 	github.com/vmihailenco/msgpack/v5 v5.3.4 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	gopkg.in/alexcesaro/statsd.v2 v2.0.0 // indirect
-	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
