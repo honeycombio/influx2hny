@@ -48,10 +48,8 @@ func TestFlush(t *testing.T) {
 			"usage_idle": float64(99),
 			"usage_busy": float64(1),
 		}
-		m1, err := metric.New("cpu", tags1, fields, now)
-		assert.NoError(t, err)
-		m2, err := metric.New("cpu", tags2, fields, now)
-		assert.NoError(t, err)
+		m1 := metric.New("cpu", tags1, fields, now)
+		m2 := metric.New("cpu", tags2, fields, now)
 
 		o, _ := newTestOutput(t)
 		o.buffer = []telegraf.Metric{m1, m2}
