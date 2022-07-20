@@ -1,5 +1,13 @@
 # Influx2hny Changelog
 
+## 0.1.4 2022-04-26
+
+### Maintenance
+
+- Bump github.com/stretchr/testify from 1.7.2 to 1.8.0 (#39)
+- Bump several dependencies to fix multiple CVEs (#41)
+- Release process fixes OpenSSL CVE
+
 ## 0.1.3 2022-04-26
 
 ### Maintenance
