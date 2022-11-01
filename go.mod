@@ -3,7 +3,7 @@ module github.com/honeycombio/influx2hny
 go 1.17
 
 require (
-	github.com/honeycombio/libhoney-go v1.16.0
+	github.com/honeycombio/libhoney-go v1.18.0
 	github.com/influxdata/telegraf v1.23.4
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.0
