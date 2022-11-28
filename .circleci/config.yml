@@ -2,7 +2,7 @@ version: 2.1
 
 orbs:
   aws-cli: circleci/aws-cli@1.4.0
-  buildevents: honeycombio/buildevents@0.2.7
+  buildevents: honeycombio/buildevents@0.9.0
 
 # enable a job when tag created (tag create is ignored by default)
 # runs for all branches and all tags
