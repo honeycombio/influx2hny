@@ -2,7 +2,6 @@ version: 2.1
 
 orbs:
   aws-cli: circleci/aws-cli@1.4.0
-  buildevents: honeycombio/buildevents@0.9.0
 
 # enable a job when tag created (tag create is ignored by default)
 # runs for all branches and all tags
@@ -38,29 +37,29 @@ executors:
 commands:
   build:
     steps:
-      - buildevents/berun:
-          bename: build
-          becommand: make
+      - run:
+          name: build
+          command: make
   # lint: # this uses golangci-lint which isn't compatible with go1.18
   #   steps:
-  #     - buildevents/berun:
-  #         bename: lint
-  #         becommand: make lint
+  #     - run:
+  #         name: lint
+  #         command: make lint
   build_packages:
     steps:
-      - buildevents/berun:
-          bename: build_packages
-          becommand: make package
+      - run:
+          name: build_packages
+          command: make package
   draft_github_release:
     steps:
-      - buildevents/berun:
-          bename: draft_github_release
-          becommand: make publish_github
+      - run:
+          name: draft_github_release
+          command: make publish_github
   sync_s3_artifacts:
     steps:
-      - buildevents/berun:
-          bename: sync_s3_artifacts
-          becommand: make publish_s3
+      - run:
+          name: sync_s3_artifacts
+          command: make publish_s3
   save_go_cache:
     steps:
       - save_cache:
@@ -78,57 +77,36 @@ commands:
           command: go install github.com/tcnksm/ghr@latest
 
 jobs:
-  setup:
-    executor: go
-    steps:
-      - buildevents/start_trace
-  watch:
-    executor: go
-    steps:
-      - buildevents/watch_build_and_finish
   build:
     executor: go
     steps:
-      - buildevents/with_job_span:
-          steps:
-            - buildevents/start_trace
-            - checkout
-            - build
-            # - lint
-            # - test
-            - save_go_cache
-            - persist_to_workspace:
-                root: .
-                paths: [ . ]
+      - checkout
+      - build
+      # - lint
+      # - test
+      - save_go_cache
+      - persist_to_workspace:
+          root: .
+          paths: [ . ]
   release:
     executor: go
     steps:
-      - buildevents/with_job_span:
-          steps:
-            - install_ghr
-            - aws-cli/install
-            - aws-cli/setup
-            - attach_workspace:
-                at: .
-            - build_packages
-            - draft_github_release
-            - sync_s3_artifacts
+      - install_ghr
+      - aws-cli/install
+      - aws-cli/setup
+      - attach_workspace:
+          at: .
+      - build_packages
+      - draft_github_release
+      - sync_s3_artifacts
 
 workflows:
   version: 2
   ci:
     jobs:
-      - setup:
-          <<: *filters_always
-      - watch:
-          <<: *filters_internal
-          context: Honeycomb Secrets for Public Repos
-          requires:
-            - setup
       - build:
           <<: *filters_always
-          requires:
-            - setup
+
       - release:
           <<: *filters_publish
           context: Honeycomb Secrets for Public Repos
