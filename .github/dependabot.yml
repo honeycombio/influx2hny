@@ -14,5 +14,5 @@ updates:
     reviewers:
       - "honeycombio/collection-team"
     commit-message:
-      prefix: "main"
+      prefix: "maint"
       include: "scope"
