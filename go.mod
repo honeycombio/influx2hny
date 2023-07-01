@@ -7,7 +7,7 @@ require (
 	github.com/influxdata/telegraf v1.23.4
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.0
-	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4
+	golang.org/x/sync v0.3.0
 )
 
 require (
