@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/honeycombio/libhoney-go v1.20.0
-	github.com/influxdata/telegraf v1.27.4
+	github.com/influxdata/telegraf v1.23.4
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.4
 	golang.org/x/sync v0.3.0
